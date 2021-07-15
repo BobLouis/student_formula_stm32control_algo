@@ -302,14 +302,14 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
   //waiting for precharge reset_switch, ready to drive to activate the driving mode
-		if(rtd_io==0){
+		if(rtd_io==0 ){
 				torque_right=0;
 				torque_left=0;
 				HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(pedals_LED_GPIO_Port,pedals_LED_Pin,GPIO_PIN_RESET);
 				duration=0;
 				do{
-						if(BPPS>=BrakeAct &&  rtd_start==1){
+						if(BPPS>=BrakeAct &&  rtd_start==1 && (errorNumber == 0 || errorNumber == 5)){
 								startTime=HAL_GetTick();
 								setBuzzer(50);
 								while(duration<ReadyTime &&   rtd_start==1){
@@ -464,6 +464,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
 	HAL_IWDG_Refresh(&hiwdg);
 	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
+	}
+	
+	//check apps sensor range
+	if(!rtd_io){
+		errorNumber = check_safety();
+		if(!(errorNumber == 0 || errorNumber == 5)){
+			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
+		}
 	}
 	++cycle;
 }
