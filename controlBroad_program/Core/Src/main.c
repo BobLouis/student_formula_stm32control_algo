@@ -121,6 +121,7 @@ uint32_t duration=0;
 uint8_t cycle = 0;
 bool pedals=0;
 bool rtd_io=0;
+bool error =0;
 bool rtd_start=0; //if precharge&&reset&&readyToDrive io are all on this parameter will be true
 //bool ready_io=0;
 bool precharge_io=0;
@@ -309,7 +310,7 @@ int main(void)
 				HAL_GPIO_WritePin(pedals_LED_GPIO_Port,pedals_LED_Pin,GPIO_PIN_RESET);
 				duration=0;
 				do{
-						if(BPPS>=BrakeAct &&  rtd_start==1 && (errorNumber == 0 || errorNumber == 5)){
+						if(BPPS>=BrakeAct &&  rtd_start==1 && error == 0){
 								startTime=HAL_GetTick();
 								setBuzzer(50);
 								while(duration<ReadyTime &&   rtd_start==1){
@@ -470,6 +471,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(!rtd_io){
 		errorNumber = check_safety();
 		if(!(errorNumber == 0 || errorNumber == 5)){
+			error = 1;
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
 		}
 	}
@@ -579,6 +581,7 @@ void driving_mode(void){
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
 			torque_right=0;
 			torque_left=0;
+			error = 1;
 			rtd_io=0;
 			break;
 		}
@@ -587,6 +590,7 @@ void driving_mode(void){
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
 			torque_right=0;
 			torque_left=0;
+			error = 1;
 			rtd_io=0;
 			break;
 		}
@@ -595,6 +599,7 @@ void driving_mode(void){
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
 			torque_right=0;
 			torque_left=0;
+			error = 1;
 			rtd_io=0;
 			break;
 		}
