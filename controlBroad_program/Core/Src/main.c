@@ -473,6 +473,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if(!(errorNumber == 0 || errorNumber == 5)){
 			error = 1;
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
+		}else{
+			error = 0;
+			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_RESET);
 		}
 	}
 	++cycle;
