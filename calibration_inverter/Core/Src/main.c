@@ -88,6 +88,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+bool enable = 0;
+
 uint16_t adcArr[5];
 static CAN_TxHeaderTypeDef TxMessage_right;
 static CAN_TxHeaderTypeDef TxMessage_left;
@@ -425,58 +427,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* NOTE : This function should not be modified, when the callback is needed,
             the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
    */
-	a11_var=a11();
-	a12_var=a12();
-	a21_var=a21();
-	a22_var=a22();
-	b11_var=b11();
-	b12_var=b12();
-	//speed_map=1;
-	//steer_map=0.0872664626;
-	speed_map=map_double((double)adcArr[4],0.0,4095.0,-20.0,20.0);
-	steer_map=map_double((double)adcArr[3],0.0,4095.0,-30*RAD_REC,30*RAD_REC);
-	beta_diff_cur=beta_diff();
-	gamma_diff_cur = gamma_diff();
-	counter_cur=HAL_GetTick();
-	period = counter_cur-counter_pre;
-	beta+=period*beta_diff()/1000;
-	gamma+=period*gamma_diff()/1000;
-	counter_pre=counter_cur;
-	if((cycle % 30 ) == 0){
-	//Gyro read
-	adxl_read(0x32);
-	x = ((data_rec[1] << 8) | data_rec[0]);
-	y = ((data_rec[3] << 8) | data_rec[2]);
-	z = ((data_rec[5] << 8) | data_rec[4]);
-		
-	xg = x * 0.0078;
-	yg = y * 0.0078;
-	zg = z * 0.0078;
-	}
+
 	if((cycle%20) == 0){
 	//CAN transmit
-	if(clear_fault_io){
-		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_R_clear,TxData_clear,&TxMailbox);
-		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_L_clear,TxData_clear,&TxMailbox);
-		clear_fault_io=0;
-	}
-	torque_to_can();
+	
 	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
 	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
 	HAL_IWDG_Refresh(&hiwdg);
 	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
 	}
 	
-	//check apps sensor range
-	if(!rtd_io){
-		errorNumber = check_safety();
-		if(!(errorNumber == 0 || errorNumber == 5)){
-			error = 1;
-			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_SET);
-		}else{
-			error = 0;
-			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_RESET);
-		}
+	if(enable) {
+		TxData_L[3] = 5;
+		TxData_L[2] = 220;
+		TxData_L[5] = 5;
+	}else{
+		TxData_L[3] = 0;
+		TxData_L[2] = 0;
+		TxData_L[5] = 0;
 	}
 	++cycle;
 }
