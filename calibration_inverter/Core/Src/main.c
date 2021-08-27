@@ -431,20 +431,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if((cycle%20) == 0){
 	//CAN transmit
 	
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
-	HAL_IWDG_Refresh(&hiwdg);
-	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
+		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
+		HAL_IWDG_Refresh(&hiwdg);
+		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
 	}
 	
 	if(enable) {
+		/*
 		TxData_L[3] = 5;
 		TxData_L[2] = 220;
 		TxData_L[5] = 5;
+		*/
+		TxData_L[0] = 30;
+		TxData_L[1] = 0;
+		TxData_L[5] = 1;
+		
+		TxData_R[0] = 30;
+		TxData_R[1] = 0;
+		TxData_R[5] = 1;
+		HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_SET);
 	}else{
+		TxData_L[0] = 0;
+		TxData_L[1] = 0;
 		TxData_L[3] = 0;
 		TxData_L[2] = 0;
 		TxData_L[5] = 0;
+		
+		TxData_R[0] = 0;
+		TxData_R[1] = 0;
+		TxData_R[3] = 0;
+		TxData_R[2] = 0;
+		TxData_R[5] = 0;
+		HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_RESET);
 	}
 	++cycle;
 }
@@ -472,6 +491,7 @@ void CAN_filterConfig(void){
 	}		//enable interrupt
 	
 }
+
 void CAN_Txsetup(){
 		if(HAL_CAN_Start(&hcan1)!=HAL_OK){
 		Error_Handler();
@@ -536,12 +556,14 @@ void CAN_Txsetup(){
 		TxData_clear[7]=0;
 		
 }
-
+\
+/*
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	if(HAL_CAN_GetRxMessage(hcan,CAN_RX_FIFO0,&RxMessage,RxData)!=HAL_OK){
 		Error_Handler();
 	}
 }
+*/
 
 
 void driving_mode(void){
