@@ -98,6 +98,8 @@ static CAN_RxHeaderTypeDef RxMessage;
 //Rx Txdata
 uint8_t TxData_R[8]={0};
 uint8_t TxData_L[8]={0};
+uint8_t RxData_R[8]={0};
+uint8_t RxData_L[8]={0};
 uint8_t TxData_clear[8]={0};
 uint32_t TxMailbox;
 uint8_t RxData[8]={0};
@@ -105,7 +107,7 @@ uint8_t RxData[8]={0};
 //address
 uint16_t OwnID=0x123;
 uint16_t RemoteID =0x0A0;
-
+uint16_t Received_ID;
 //sensor
 uint32_t accMeter =0;
 uint16_t wheelSpeed[4];
@@ -122,6 +124,8 @@ uint8_t cycle = 0;
 bool pedals=0;
 bool rtd_io=0;
 bool error =0;
+bool inverter_error_L = 0;
+bool inverter_error_R = 0;
 bool rtd_start=0; //if precharge&&reset&&readyToDrive io are all on this parameter will be true
 //bool ready_io=0;
 bool precharge_io=0;
@@ -459,6 +463,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_R_clear,TxData_clear,&TxMailbox);
 		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_L_clear,TxData_clear,&TxMailbox);
 		clear_fault_io=0;
+		HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
 	}
 	torque_to_can();
 	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
@@ -558,7 +563,7 @@ void CAN_Txsetup(){
 		TxMessage_L_clear.TransmitGlobalTime=DISABLE;   
 		
 		
-		TxData_clear[0]=0;
+		TxData_clear[0]=20;
 		TxData_clear[1]=0;
 		TxData_clear[2]=1;
 		TxData_clear[3]=0;
@@ -573,7 +578,39 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	if(HAL_CAN_GetRxMessage(hcan,CAN_RX_FIFO0,&RxMessage,RxData)!=HAL_OK){
 		Error_Handler();
 	}
+	Received_ID=RxMessage.StdId;
+	
+	
+	if(Received_ID == 0xAB){
+		inverter_error_R = 0;
+		for(int i=0;i<8;++i){
+			RxData_R[i]=RxData[i];
+			if(RxData[i]){
+				inverter_error_R = 1;
+		    HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
+			}
+		}
+		if(!inverter_error_R){
+			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
+		}
+	}
+	
+	if(Received_ID == 0x5B){
+		inverter_error_L = 0;
+		for(int i=0;i<8;++i){
+			RxData_L[i]=RxData[i];
+			if(RxData[i]){
+				inverter_error_L = 1;
+		    HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
+			}
+		}
+		if(!inverter_error_L){
+			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
+		}
+	}
+	
 }
+
 
 
 void driving_mode(void){
