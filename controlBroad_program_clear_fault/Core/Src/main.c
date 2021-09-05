@@ -40,6 +40,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+//command torque define
+#define TORQUE_UB 1400
+
 //pedal box parameter setting
 #define BrakeAct 800
 #define APPSAct 800
@@ -116,6 +119,7 @@ uint16_t steerDegree =0;
 
 bool readyButton;
 uint8_t errorNumber;
+uint8_t torque_upper_bound = 0;
 uint16_t torque_right=0;
 uint16_t torque_left=0;
 uint32_t startTime;
