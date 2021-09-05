@@ -41,7 +41,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 //command torque define
-#define TORQUE_UB 1400
+
 
 //pedal box parameter setting
 #define BrakeAct 800
@@ -81,6 +81,7 @@
 #define STEER (double)adcArr[5]
 
 #define MASS 300.0
+#define POWER_UB 40000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -116,10 +117,14 @@ uint32_t accMeter =0;
 uint16_t wheelSpeed[4];
 uint16_t steerDegree =0;
 
+//inverter
+uint16_t rpm_right =0;
+uint16_t rpm_left = 0;
 
 bool readyButton;
 uint8_t errorNumber;
-uint8_t torque_upper_bound = 0;
+const uint16_t fixed_torque_ub = 1400;
+uint16_t torque_ub = 0;
 uint16_t torque_right=0;
 uint16_t torque_left=0;
 uint32_t startTime;
@@ -463,17 +468,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	if((cycle%20) == 0){
 	//CAN transmit
-	if(clear_fault_io){
-		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_R_clear,TxData_clear,&TxMailbox);
-		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_L_clear,TxData_clear,&TxMailbox);
-		clear_fault_io=0;
-		HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
-	}
-	torque_to_can();
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
-	HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
-	HAL_IWDG_Refresh(&hiwdg);
-	HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
+		if(clear_fault_io){
+			HAL_CAN_AddTxMessage(&hcan1,&TxMessage_R_clear,TxData_clear,&TxMailbox);
+			HAL_CAN_AddTxMessage(&hcan1,&TxMessage_L_clear,TxData_clear,&TxMailbox);
+			clear_fault_io=0;
+			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
+		}
+		torque_to_can();
+		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_right,TxData_R,&TxMailbox);
+		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
+		HAL_IWDG_Refresh(&hiwdg);
+		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
 	}
 	
 	//check apps sensor range
@@ -584,7 +589,42 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	}
 	Received_ID=RxMessage.StdId;
 	
+	switch(Received_ID){
+		case 0xAB:
+			inverter_error_R = 0;
+			for(int i=0;i<8;++i){
+				RxData_R[i]=RxData[i];
+				if(RxData[i]){
+					inverter_error_R = 1;
+					HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
+				}
+			}
+			if(!inverter_error_R){
+				HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
+			}
+			break;
+		case 0x5B:
+			inverter_error_L = 0;
+			for(int i=0;i<8;++i){
+				RxData_L[i]=RxData[i];
+				if(RxData[i]){
+					inverter_error_L = 1;
+					HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
+				}
+			}
+			if(!inverter_error_L){
+				HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
+			}
+			break;
+		case 0xA5:
+			rpm_right = RxData[2]+RxData[3]*256;
+			break;
+		case 0x55:
+			rpm_left  = RxData[2]+RxData[3]*256;
+			break;
+		}
 	
+	/*
 	if(Received_ID == 0xAB){
 		inverter_error_R = 0;
 		for(int i=0;i<8;++i){
@@ -612,6 +652,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
 		}
 	}
+	*/
 	
 }
 
@@ -726,6 +767,8 @@ void torque_to_can(void){
   67  commanded torque limit (0 default)
   this message should be continuously broadcast at least 500 milliseconds
 	*/
+	torque_ub = POWER_UB/(((float)rpm_left)*0.105);
+	
 	if(rtd_io==0){
 		TxData_R[0]=0;
 		TxData_R[1]=0;
@@ -738,6 +781,10 @@ void torque_to_can(void){
 		//regenerate mode
 		//torque_right *= -1; 
 		// it will trans to 65536 + torque automatically
+		if(torque_right < ((fixed_torque_ub < torque_ub) ? fixed_torque_ub : torque_ub)){
+			torque_right = ((fixed_torque_ub < torque_ub) ? fixed_torque_ub : torque_ub);
+		}
+		torque_left = torque_right;
 		TxData_R[0]=(torque_right%256);
 		TxData_R[1]=(torque_right/256);
 		TxData_R[5]=1;
