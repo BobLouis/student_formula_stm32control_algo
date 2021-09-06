@@ -70,6 +70,10 @@ void Error_Handler(void);
 #define clear_fault_SW_Pin GPIO_PIN_5
 #define clear_fault_SW_GPIO_Port GPIOE
 #define clear_fault_SW_EXTI_IRQn EXTI9_5_IRQn
+#define current_L_Pin GPIO_PIN_0
+#define current_L_GPIO_Port GPIOC
+#define current_R_Pin GPIO_PIN_1
+#define current_R_GPIO_Port GPIOC
 #define steer_Pin GPIO_PIN_0
 #define steer_GPIO_Port GPIOA
 #define APPSR_Pin GPIO_PIN_2
@@ -90,8 +94,23 @@ void Error_Handler(void);
 #define precharge_LED_GPIO_Port GPIOC
 #define CAN_fault_LED_Pin GPIO_PIN_0
 #define CAN_fault_LED_GPIO_Port GPIOB
+#define PWM_FR_Pin GPIO_PIN_1
+#define PWM_FR_GPIO_Port GPIOB
+#define Buzzer_Pin GPIO_PIN_9
+#define Buzzer_GPIO_Port GPIOE
+#define RST_Pin GPIO_PIN_14
+#define RST_GPIO_Port GPIOE
 #define CS1_Pin GPIO_PIN_15
 #define CS1_GPIO_Port GPIOE
+#define PWM_RL_Pin GPIO_PIN_13
+#define PWM_RL_GPIO_Port GPIOD
+#define PWM_RR_Pin GPIO_PIN_15
+#define PWM_RR_GPIO_Port GPIOD
+#define PWM_FL_Pin GPIO_PIN_5
+#define PWM_FL_GPIO_Port GPIOB
+#define prechar_SW_Pin GPIO_PIN_1
+#define prechar_SW_GPIO_Port GPIOE
+#define prechar_SW_EXTI_IRQn EXTI1_IRQn
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -8,6 +8,7 @@
 "controlbroad_program\iwdg.o"
 "controlbroad_program\spi.o"
 "controlbroad_program\tim.o"
+"controlbroad_program\usart.o"
 "controlbroad_program\stm32f4xx_it.o"
 "controlbroad_program\stm32f4xx_hal_msp.o"
 "controlbroad_program\stm32f4xx_hal_adc.o"
@@ -31,8 +32,9 @@
 "controlbroad_program\stm32f4xx_hal_spi.o"
 "controlbroad_program\stm32f4xx_hal_tim.o"
 "controlbroad_program\stm32f4xx_hal_tim_ex.o"
+"controlbroad_program\stm32f4xx_hal_uart.o"
 "controlbroad_program\system_stm32f4xx.o"
---library_type=microlib --strict --scatter "controlBroad_program\controlBroad_program.sct"
+--strict --scatter "controlBroad_program\controlBroad_program.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
 --list "controlBroad_program.map" -o controlBroad_program\controlBroad_program.axf
