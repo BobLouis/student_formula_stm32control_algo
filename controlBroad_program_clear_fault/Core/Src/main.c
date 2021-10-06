@@ -129,6 +129,7 @@ bool readyButton;
 uint8_t errorNumber;
 const uint16_t fixed_torque_ub = 1400;
 uint16_t torque_ub = 0;
+uint16_t commanded_torque=0;
 uint16_t torque_right=0;
 uint16_t torque_left=0;
 uint32_t startTime;
@@ -789,11 +790,13 @@ uint16_t map(int16_t value, int16_t inputL,int16_t inputH,int16_t outputL ,int16
 
 void torque_command(void){
 		if(pedals == 0){
-			torque_right=map(APPS,0,(APPSRMAX+APPSLMAX-APPSROFFSET-APPSLOFFSET)/2,0,TORQUE_UB);
+			torque_ub = POWER_UB/(((float)rpm_right)*0.105);
+			commanded_torque = map(APPS,0,(APPSRMAX+APPSLMAX-APPSROFFSET-APPSLOFFSET)/2,0,TORQUE_UB);
+			torque_right= (torque_ub < commanded_torque) ? torque_ub : commanded_torque;
 		}else{
 			torque_right = 0;
 		}
-		//torque_ub = POWER_UB/(((float)rpm_left)*0.105);
+		
 		/*
 		if (torque_right > torque_ub ){
 			torque_right = torque_ub;
