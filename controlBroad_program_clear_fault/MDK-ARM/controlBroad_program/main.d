@@ -36,14 +36,12 @@ controlbroad_program\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_p
 controlbroad_program\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h
 controlbroad_program\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 controlbroad_program\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
-controlbroad_program\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 controlbroad_program\main.o: ../Core/Inc/adc.h
 controlbroad_program\main.o: ../Core/Inc/can.h
 controlbroad_program\main.o: ../Core/Inc/dma.h
 controlbroad_program\main.o: ../Core/Inc/iwdg.h
 controlbroad_program\main.o: ../Core/Inc/spi.h
 controlbroad_program\main.o: ../Core/Inc/tim.h
-controlbroad_program\main.o: ../Core/Inc/usart.h
 controlbroad_program\main.o: ../Core/Inc/gpio.h
 controlbroad_program\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 controlbroad_program\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

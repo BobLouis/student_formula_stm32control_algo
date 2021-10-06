@@ -27,6 +27,8 @@ extern  bool precharge_io;
 extern bool reset_io;
 extern bool rtd_start;
 extern bool clear_fault_io;
+extern bool inverter_connect_R;
+extern bool inverter_connect_L;
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
@@ -66,9 +68,6 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port, CAN_fault_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : PEPin PEPin PEPin */
@@ -77,11 +76,11 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PEPin PEPin */
-  GPIO_InitStruct.Pin = precharge_SW_Pin|prechar_SW_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = precharge_SW_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(precharge_SW_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA1 PAPin PAPin PAPin */
   GPIO_InitStruct.Pin = GPIO_PIN_1|pedals_LED_Pin|readyToDrive_LED_Pin|fault_LED_Pin;
@@ -104,22 +103,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(CAN_fault_LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PE10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PEPin PEPin */
-  GPIO_InitStruct.Pin = RST_Pin|CS1_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = CS1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+  HAL_GPIO_Init(CS1_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -133,7 +122,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
    */
 	if (GPIO_Pin==readyToDrive_SW_Pin){
 		//ready to drive trigger
-		if((HAL_GPIO_ReadPin(readyToDrive_SW_GPIO_Port,readyToDrive_SW_Pin)==GPIO_PIN_RESET)&&reset_io==1&&precharge_io==1){
+		//if((HAL_GPIO_ReadPin(readyToDrive_SW_GPIO_Port,readyToDrive_SW_Pin)==GPIO_PIN_RESET)&&reset_io==1&&precharge_io==1){
+		if(HAL_GPIO_ReadPin(readyToDrive_SW_GPIO_Port,readyToDrive_SW_Pin)==GPIO_PIN_RESET && precharge_io && inverter_connect_R && inverter_connect_L){
 			rtd_start=1;
 		}else{
 			rtd_start=0;
@@ -148,9 +138,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			rtd_start=0;
 			HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_RESET);
 		}
-	}else if(GPIO_Pin==prechar_SW_Pin){
+	}else if(GPIO_Pin==precharge_SW_Pin){
 		//precharge pin trigger
-		if(HAL_GPIO_ReadPin(prechar_SW_GPIO_Port,prechar_SW_Pin)==GPIO_PIN_SET){
+		if(HAL_GPIO_ReadPin(precharge_SW_GPIO_Port,precharge_SW_Pin)==GPIO_PIN_SET){
 			precharge_io=1;
 			HAL_GPIO_WritePin(precharge_LED_GPIO_Port,precharge_LED_Pin,GPIO_PIN_SET);
 			//HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);

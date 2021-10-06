@@ -25,7 +25,6 @@
 #include "iwdg.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -43,10 +42,12 @@
 /* USER CODE BEGIN PD */
 //command torque define
 
+//torque upper bound
+#define TORQUE_UB 700
 
 //pedal box parameter setting
-#define BrakeAct 800
-#define APPSAct 800
+#define BrakeAct 1800
+#define APPSAct 300
 #define APPSLeast 200   //for the APPS plausibility check  => motor must shut down until the APPS signals less than 5% peadal travel
 #define APPSDIFF 2000
 
@@ -55,24 +56,25 @@
 #define APPSRUPPEST 4000
 #define APPSLUPPEST 4000
 #define BPPSUPPEST 4000
-#define APPSRLOWEST 0
-#define APPSLLOWEST 0
+#define APPSRLOWEST 500
+#define APPSLLOWEST 500
 #define BPPSLOWEST 0
 #define DISCONNECT 4050
 //deine max and offset this parameter offset will slight bigger than the lowest and max will slight smaller than the uppest depends on  the pedal box
 //this parameter is used to determine the output torque
-#define APPSRMAX 3800
-#define APPSLMAX 3800
-#define APPSROFFSET 0
-#define APPSLOFFSET 0
-
+#define APPSRMAX 3740
+#define APPSLMAX 3500
+#define APPSROFFSET 1860
+#define APPSLOFFSET 1500
+#define BPPSOFFSET 1500
+#define BPPSMAX 2500
 #define ReadyTime 1000   //ms
 
 //dma scan
-#define APPSR adcArr[0]
-#define APPSL adcArr[1]
+#define APPSR adcArr[0] //min 1740   max 3740
+#define APPSL adcArr[1] //min 1450   max 3500
 #define BPPS   adcArr[2]
-#define APPS (adcArr[0]+adcArr[1])/2
+//#define APPS ((adcArr[0] - APPSROFFSET) + (adcArr[1] - APPSLOFFSET))/2
 
 
 //daul algorithm
@@ -94,6 +96,7 @@
 
 /* USER CODE BEGIN PV */
 uint16_t adcArr[5];
+int16_t APPS = 0;
 static CAN_TxHeaderTypeDef TxMessage_right;
 static CAN_TxHeaderTypeDef TxMessage_left;
 static CAN_TxHeaderTypeDef TxMessage_R_clear;
@@ -136,10 +139,14 @@ bool rtd_io=0;
 bool error =0;
 bool inverter_error_L = 0;
 bool inverter_error_R = 0;
+bool inverter_connect_L = 0;
+bool inverter_connect_R = 0;
+uint16_t inverter_alive_counter_R = 0;
+uint16_t inverter_alive_counter_L = 0;
 bool rtd_start=0; //if precharge&&reset&&readyToDrive io are all on this parameter will be true
 //bool ready_io=0;
 bool precharge_io=0;
-bool reset_io=0;
+bool reset_io=1;
 bool clear_fault_io=0;
 bool direction=0;
 
@@ -209,7 +216,7 @@ void driving_mode(void);
 void led_blink(void);
 void pedals_mode(void);
 uint8_t check_safety(void);
-uint16_t map(uint16_t value,uint16_t inputL,uint16_t inputH,uint16_t outputL ,uint16_t outputH);
+uint16_t map(int16_t value,int16_t inputL,int16_t inputH,int16_t outputL ,int16_t outputH);
 void torque_command(void);
 void torque_to_can(void);
 
@@ -254,6 +261,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -278,7 +286,6 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_TIM1_Init();
-  MX_USART1_UART_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -291,7 +298,7 @@ int main(void)
 	precharge_io=HAL_GPIO_ReadPin(precharge_SW_GPIO_Port,precharge_SW_Pin);
 	if(precharge_io)
 		HAL_GPIO_WritePin(precharge_LED_GPIO_Port,precharge_LED_Pin,GPIO_PIN_SET);
-	reset_io=!(HAL_GPIO_ReadPin(reset_SW_GPIO_Port,reset_SW_Pin));
+	reset_io=1;
 	
 	adxl_init();
 	//PWM timer
@@ -325,7 +332,7 @@ int main(void)
 				HAL_GPIO_WritePin(pedals_LED_GPIO_Port,pedals_LED_Pin,GPIO_PIN_RESET);
 				duration=0;
 				do{
-						if(BPPS>=BrakeAct &&  rtd_start==1 && error == 0){
+						if(rtd_start==1 && errorNumber == 5){
 								startTime=HAL_GetTick();
 								setBuzzer(200);
 								while(duration<ReadyTime &&   rtd_start==1){
@@ -440,6 +447,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* NOTE : This function should not be modified, when the callback is needed,
             the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
    */
+	/*
 	a11_var=a11();
 	a12_var=a12();
 	a21_var=a21();
@@ -448,6 +456,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	b12_var=b12();
 	//speed_map=1;
 	//steer_map=0.0872664626;
+	
 	speed_map=map_double((double)adcArr[4],0.0,4095.0,-20.0,20.0);
 	steer_map=map_double((double)adcArr[3],0.0,4095.0,-30*RAD_REC,30*RAD_REC);
 	beta_diff_cur=beta_diff();
@@ -468,12 +477,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	yg = y * 0.0078;
 	zg = z * 0.0078;
 	}
+	*/
+	APPS = ((adcArr[0] - APPSROFFSET) + (adcArr[1] - APPSLOFFSET))/2;
 	if((cycle%20) == 0){
 	//CAN transmit
 		if(clear_fault_io){
 			HAL_CAN_AddTxMessage(&hcan1,&TxMessage_R_clear,TxData_clear,&TxMailbox);
 			HAL_CAN_AddTxMessage(&hcan1,&TxMessage_L_clear,TxData_clear,&TxMailbox);
-			clear_fault_io=0;
+			clear_fault_io = 0;
+			inverter_error_L = 0;
+			inverter_error_R = 0;
 			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
 		}
 		torque_to_can();
@@ -481,6 +494,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		HAL_CAN_AddTxMessage(&hcan1,&TxMessage_left ,TxData_L,&TxMailbox);
 		HAL_IWDG_Refresh(&hiwdg);
 		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_1);    
+		
+		++inverter_alive_counter_L;
+		++inverter_alive_counter_R;
+		if(inverter_alive_counter_L > 10){
+			inverter_connect_L = 0;
+		}
+		if(inverter_alive_counter_R > 10){
+			inverter_connect_R = 0;
+		}
+		
+		if(!inverter_connect_R || !inverter_connect_L){
+			rtd_io=0;
+			HAL_GPIO_WritePin(readyToDrive_LED_GPIO_Port,readyToDrive_LED_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
+		}
 	}
 	
 	//check apps sensor range
@@ -494,6 +522,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			HAL_GPIO_WritePin(fault_LED_GPIO_Port,fault_LED_Pin,GPIO_PIN_RESET);
 		}
 	}
+	
+	
 	++cycle;
 }
 
@@ -544,7 +574,7 @@ void CAN_Txsetup(){
 		TxData_R[1]=0;
 		TxData_R[2]=0;
 		TxData_R[3]=0;
-		TxData_R[4]=direction;
+		TxData_R[4]=!direction;
 		TxData_R[5]=0;
 		TxData_R[6]=0;
 		TxData_R[7]=0;
@@ -554,7 +584,7 @@ void CAN_Txsetup(){
 		TxData_L[1]=0;
 		TxData_L[2]=0;
 		TxData_L[3]=0;
-		TxData_L[4]=!direction;
+		TxData_L[4]=direction;
 		TxData_L[5]=0;
 		TxData_L[6]=0;
 		TxData_L[7]=0;
@@ -593,29 +623,31 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 	
 	switch(Received_ID){
 		case 0xAB:
+			inverter_alive_counter_R = 0;
+			inverter_connect_R = 1;
 			inverter_error_R = 0;
 			for(int i=0;i<8;++i){
 				RxData_R[i]=RxData[i];
 				if(RxData[i]){
 					inverter_error_R = 1;
+					error = 1;
+					rtd_io=0;
 					HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
 				}
 			}
-			if(!inverter_error_R){
-				HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
-			}
 			break;
 		case 0x5B:
-			inverter_error_L = 0;
+			inverter_alive_counter_L = 0;
+			inverter_connect_L = 1;
+			
 			for(int i=0;i<8;++i){
 				RxData_L[i]=RxData[i];
 				if(RxData[i]){
 					inverter_error_L = 1;
+					error = 1;
+			    rtd_io=0;
 					HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_SET);
 				}
-			}
-			if(!inverter_error_L){
-				HAL_GPIO_WritePin(CAN_fault_LED_GPIO_Port,CAN_fault_LED_Pin,GPIO_PIN_RESET);
 			}
 			break;
 		case 0xA5:
@@ -655,7 +687,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
 		}
 	}
 	*/
-	
 }
 
 
@@ -724,7 +755,7 @@ uint8_t check_safety(void){
 			return 1;
 		}
 		//apps difference over APPS different  limit
-		else if( __fabs (APPSR-APPSL)> APPSDIFF){
+		else if( __fabs ((APPSR - APPSROFFSET) - (APPSL - APPSLOFFSET))> APPSDIFF){
 			return 2;
 		}
 		//check if sensor in the correct zone
@@ -733,8 +764,9 @@ uint8_t check_safety(void){
 			return 3;
 		}
 		//braking >20
+		
 		else if(BPPS>BrakeAct){
-			if(APPS>APPSAct){
+			if(APPS > APPSAct){
 				 pedals=1;	
 				return 4;	 //braking with pedal not safe
 			}
@@ -743,8 +775,10 @@ uint8_t check_safety(void){
 		return 0;   //accelaration mode
 }
 
-uint16_t map(uint16_t value, uint16_t inputL,uint16_t inputH,uint16_t outputL ,uint16_t outputH){
-	
+uint16_t map(int16_t value, int16_t inputL,int16_t inputH,int16_t outputL ,int16_t outputH){
+	if(value < inputL){
+		return 0;
+	}
 	uint16_t returnVal=(value-inputL)*(outputH-outputL)/(inputH-inputL)+outputL;
 	if(returnVal>outputH){
 		return outputH;
@@ -754,8 +788,19 @@ uint16_t map(uint16_t value, uint16_t inputL,uint16_t inputH,uint16_t outputL ,u
 }
 
 void torque_command(void){
-		torque_right=map(APPS,(APPSROFFSET+APPSLOFFSET)/2,(APPSRMAX+APPSLMAX)/2,0,1400);
-		torque_left= map(APPS,(APPSROFFSET+APPSLOFFSET)/2,(APPSRMAX+APPSLMAX)/2,0,1400);
+		if(pedals == 0){
+			torque_right=map(APPS,0,(APPSRMAX+APPSLMAX-APPSROFFSET-APPSLOFFSET)/2,0,TORQUE_UB);
+		}else{
+			torque_right = 0;
+		}
+		//torque_ub = POWER_UB/(((float)rpm_left)*0.105);
+		/*
+		if (torque_right > torque_ub ){
+			torque_right = torque_ub;
+		}
+		*/
+		//torque_left= torque_right;
+		
 }
 
 void torque_to_can(void){
@@ -769,7 +814,7 @@ void torque_to_can(void){
   67  commanded torque limit (0 default)
   this message should be continuously broadcast at least 500 milliseconds
 	*/
-	torque_ub = POWER_UB/(((float)rpm_left)*0.105);
+	
 	
 	if(rtd_io==0){
 		TxData_R[0]=0;
@@ -783,16 +828,13 @@ void torque_to_can(void){
 		//regenerate mode
 		//torque_right *= -1; 
 		// it will trans to 65536 + torque automatically
-		if(torque_right < ((fixed_torque_ub < torque_ub) ? fixed_torque_ub : torque_ub)){
-			torque_right = ((fixed_torque_ub < torque_ub) ? fixed_torque_ub : torque_ub);
-		}
-		torque_left = torque_right;
+		
 		TxData_R[0]=(torque_right%256);
 		TxData_R[1]=(torque_right/256);
 		TxData_R[5]=1;
-		
-		TxData_L[0] = (torque_left%256);
-		TxData_L[1] = (torque_left/256);
+			
+		TxData_L[0] = (torque_right%256);
+		TxData_L[1] = (torque_right/256);
 		TxData_L[5]=1;
 	}
 }

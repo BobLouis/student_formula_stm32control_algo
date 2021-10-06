@@ -435,12 +435,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	
 	if(enable){
-		TxData_R[0] = 20;
-		TxData_R[1] = 0;
+		TxData_R[0] = 188;
+		TxData_R[1] = 2;
 		TxData_R[5] = 1;
 		
-		TxData_L[0] = 20;
-		TxData_L[1] = 0;
+		TxData_L[0] = 188;
+		TxData_L[1] = 2;
 		TxData_L[5] = 1;
 	}else{
 		TxData_R[0] = 0;
