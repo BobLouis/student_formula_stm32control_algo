@@ -46,7 +46,7 @@
 #define TORQUE_UB 700
 
 //pedal box parameter setting
-#define BrakeAct 1800
+#define BrakeAct 2500
 #define APPSAct 300
 #define APPSLeast 200   //for the APPS plausibility check  => motor must shut down until the APPS signals less than 5% peadal travel
 #define APPSDIFF 2000
@@ -55,25 +55,25 @@
 //if out of this range will generate error
 #define APPSRUPPEST 4000
 #define APPSLUPPEST 4000
-#define BPPSUPPEST 4000
+#define BPPSUPPEST 5000
 #define APPSRLOWEST 500
 #define APPSLLOWEST 500
 #define BPPSLOWEST 0
-#define DISCONNECT 4050
+#define DISCONNECT 5000
 //deine max and offset this parameter offset will slight bigger than the lowest and max will slight smaller than the uppest depends on  the pedal box
 //this parameter is used to determine the output torque
-#define APPSRMAX 3740
-#define APPSLMAX 3500
-#define APPSROFFSET 1860
-#define APPSLOFFSET 1500
-#define BPPSOFFSET 1500
-#define BPPSMAX 2500
+#define APPSRMAX 2695
+#define APPSLMAX 2695
+#define APPSROFFSET 1600
+#define APPSLOFFSET 1600
+#define BPPSOFFSET 900
+#define BPPSMAX 5000
 #define ReadyTime 1000   //ms
 
 //dma scan
 #define APPSR adcArr[0] //min 1740   max 3740
-#define APPSL adcArr[1] //min 1450   max 3500
-#define BPPS   adcArr[2]
+#define APPSL adcArr[0] //min 1450   max 3500
+#define BPPS   adcArr[4]
 //#define APPS ((adcArr[0] - APPSROFFSET) + (adcArr[1] - APPSLOFFSET))/2
 
 
@@ -262,6 +262,8 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+
+
 
   HAL_Init();
 
@@ -479,7 +481,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	zg = z * 0.0078;
 	}
 	*/
-	APPS = ((adcArr[0] - APPSROFFSET) + (adcArr[1] - APPSLOFFSET))/2;
+	APPS = ((adcArr[0] - APPSROFFSET) + (adcArr[0] - APPSLOFFSET))/2;
 	if((cycle%20) == 0){
 	//CAN transmit
 		if(clear_fault_io){
@@ -498,10 +500,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		
 		++inverter_alive_counter_L;
 		++inverter_alive_counter_R;
-		if(inverter_alive_counter_L > 10){
+		if(inverter_alive_counter_L > 50){
 			inverter_connect_L = 0;
 		}
-		if(inverter_alive_counter_R > 10){
+		if(inverter_alive_counter_R > 50){
 			inverter_connect_R = 0;
 		}
 		
@@ -792,7 +794,12 @@ void torque_command(void){
 		if(pedals == 0){
 			torque_ub = POWER_UB/(((float)rpm_right)*0.105);
 			commanded_torque = map(APPS,0,(APPSRMAX+APPSLMAX-APPSROFFSET-APPSLOFFSET)/2,0,TORQUE_UB);
-			torque_right= (torque_ub < commanded_torque) ? torque_ub : commanded_torque;
+			//torque_right= (torque_ub < commanded_torque) ? torque_ub : commanded_torque;
+			if(rpm_right < 9000){
+				torque_right = commanded_torque;
+			}else{
+				torque_right= (torque_ub < commanded_torque) ? torque_ub : commanded_torque;
+			}
 		}else{
 			torque_right = 0;
 		}
